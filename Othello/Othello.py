@@ -36,6 +36,10 @@ class Othello:
 
         self.dessiner_plateau()
 
+        self.blink_state = False            # État du clignotement (allumé/éteint)
+        self.clignotement_delay = 600       # Intervalle en ms (0.6s)
+        self.fenetre.after(self.clignotement_delay, self.clignoter)
+
     def dessiner_plateau(self):
         self.canvas.delete("all")
         for lig in range(self.size):
@@ -53,9 +57,11 @@ class Othello:
                     self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="black")
                 elif self.plateau[lig][col] == self.BLANC:
                     self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="white")
+        
+        self.afficher_coups_jouables()
+
     
     def gerer_clic(self, event):
-        """Vérifie si le coup est valide, place le pion, retourne les pions adverses et gère le passage de tour."""
         col = event.x // self.cellules_size
         lig = event.y // self.cellules_size
 
@@ -63,31 +69,37 @@ class Othello:
             if self.coup_valide(lig, col, self.joueur_courant):
                 joueur_actuel = self.joueur_courant
 
-                #on place le pion car valide, et on retourne les pions adverses
+                # on place le pion car valide, et on retourne les pions adverses
                 self.plateau[lig][col] = joueur_actuel
                 self.retourner_pions(lig, col, joueur_actuel)
 
                 self.mise_à_jour_scores()
                 self.dessiner_plateau()
 
-                #on cherche à déterminer le joueur suivant, dans le cas où un des joueur ne peut pas jouer alors on passe le tour
+                # on cherche à déterminer le joueur suivant
                 prochain = self.BLANC if joueur_actuel == self.NOIR else self.NOIR
 
                 if self.peut_jouer(prochain):
                     self.joueur_courant = prochain
                 elif self.peut_jouer(joueur_actuel):
-                    messagebox.showinfo("Passer le tour", f"Le joueur {prochain} ne peut pas jouer. Le tour reste au joueur {joueur_actuel}.")
+                    messagebox.showinfo(
+                        "Passer le tour",
+                        f"Le joueur {prochain} ne peut pas jouer. Le tour reste au joueur {joueur_actuel}."
+                    )
                     self.joueur_courant = joueur_actuel
                 else:
-                    #dans le cas où aucun des deux joueur ne peut jouer alors fin de partie
+                    #les deux ne peuvent pas jouer, alors on verif la fin de partie
                     self.verifier_fin_partie()
                     return
 
-                #après chaque coup il faut vérifier si la partie est terminée
+                if not self.partie_terminee():
+                    self.dessiner_plateau()  
+                
+                #on vérif dès que le changement de joueur est fait
                 if self.partie_terminee():
                     self.verifier_fin_partie()
-
-                self.mise_à_jour_scores()
+                else:
+                    self.mise_à_jour_scores()
             else:
                 print("Placement non valide (debug)")
 
@@ -183,6 +195,31 @@ class Othello:
                 resultat = "Match nul !"
             messagebox.showinfo("Fin de Partie", f"Score final - Noirs: {pions_noir} | Blancs: {pions_blanc}\n{resultat}")
     
+    def afficher_coups_jouables(self):
+        """
+        Affiche un petit cercle (tagué 'coups_jouables') sur les cases
+        où le joueur courant peut jouer.
+        """
+        for lig in range(self.size):
+            for col in range(self.size):
+                if self.coup_valide(lig, col, self.joueur_courant):
+                    x1 = col * self.cellules_size
+                    y1 = lig * self.cellules_size
+                    x2 = x1 + self.cellules_size
+                    y2 = y1 + self.cellules_size
+                    cx, cy = (x1 + x2)//2, (y1 + y2)//2
+                    r = 8
+                    self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r,
+                                            fill="", outline="",
+                                            tags=("coups_jouables",))
+
+    def clignoter(self):
+        """Fonction pour faire clignoter les coups jouables"""
+        self.blink_state = not self.blink_state
+        fill_color = "red" if self.blink_state else ""
+        self.canvas.itemconfig("coups_jouables", fill=fill_color)
+        self.fenetre.after(self.clignotement_delay, self.clignoter)
+
 def main():
     root = tk.Tk()
     Othello(root)
