@@ -36,8 +36,8 @@ class Othello:
 
         self.dessiner_plateau()
 
-        self.blink_state = False            # État du clignotement (allumé/éteint)
-        self.clignotement_delay = 600       # Intervalle en ms (0.6s)
+        self.blink_state = False #allumé éteint
+        self.clignotement_delay = 1000  # 1 seconde        
         self.fenetre.after(self.clignotement_delay, self.clignoter)
 
     def dessiner_plateau(self):
@@ -54,9 +54,9 @@ class Othello:
 
                 # Dessin des pions
                 if self.plateau[lig][col] == self.NOIR:
-                    self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="black")
+                    self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="black", outline="white", width=1)
                 elif self.plateau[lig][col] == self.BLANC:
-                    self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="white")
+                    self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="white", outline="black", width=1)
         
         self.afficher_coups_jouables()
 
@@ -196,10 +196,7 @@ class Othello:
             messagebox.showinfo("Fin de Partie", f"Score final - Noirs: {pions_noir} | Blancs: {pions_blanc}\n{resultat}")
     
     def afficher_coups_jouables(self):
-        """
-        Affiche un petit cercle (tagué 'coups_jouables') sur les cases
-        où le joueur courant peut jouer.
-        """
+        """Affiche un petit cercle gris pour les coups dit jouables pour le joueur actuel"""
         for lig in range(self.size):
             for col in range(self.size):
                 if self.coup_valide(lig, col, self.joueur_courant):
@@ -209,15 +206,17 @@ class Othello:
                     y2 = y1 + self.cellules_size
                     cx, cy = (x1 + x2)//2, (y1 + y2)//2
                     r = 8
-                    self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r,
-                                            fill="", outline="",
-                                            tags=("coups_jouables",))
-
+                    rayon_gris = self.cellules_size // 2 - 10
+                    self.canvas.create_oval(
+                        cx - rayon_gris, cy - rayon_gris, cx + rayon_gris, cy + rayon_gris,
+                        fill="#A9A9A9",  # gris clair
+                        outline="", tags=("coups_jouables",)
+                    )
     def clignoter(self):
-        """Fonction pour faire clignoter les coups jouables"""
+        """permet de faire clignoter les pions gris"""
         self.blink_state = not self.blink_state
-        fill_color = "red" if self.blink_state else ""
-        self.canvas.itemconfig("coups_jouables", fill=fill_color)
+        couleur = "#A9A9A9" if self.blink_state else ""
+        self.canvas.itemconfig("coups_jouables", fill=couleur)
         self.fenetre.after(self.clignotement_delay, self.clignoter)
 
 def main():
