@@ -1,5 +1,6 @@
 import tkinter as tk
 import tkinter.messagebox as messagebox
+import random as random
 
 class Othello:
     def __init__(self, fenetre):
@@ -218,6 +219,71 @@ class Othello:
         couleur = "#A9A9A9" if self.blink_state else ""
         self.canvas.itemconfig("coups_jouables", fill=couleur)
         self.fenetre.after(self.clignotement_delay, self.clignoter)
+
+class IAOthello:
+    def __init__(self, couleur, profondeur_max):
+        """Initialise l'IA avec sa couleur et la profondeur max de recherche."""
+        self.couleur = couleur
+        self.profondeur_max = profondeur_max
+
+    def jouer_coup(self, plateau):
+        """Calcule et joue le meilleur coup possible pour l'IA sur le plateau."""
+        pass
+
+    def minmax(self, plateau, profondeur, alpha, beta, maximisant):
+        """Algorithme Min-Max avec élagage alpha-bêta pour choisir un coup."""
+        pass
+
+    def evaluer_plateau(self, plateau):
+        """Évalue le plateau selon une heuristique avancée."""
+        score = 0
+        score += 10 * self.diff_pions(plateau)
+        score += 20 * self.coins(plateau)
+        score += 15 * self.mobilite(plateau)
+        score += 10 * self.stabilite(plateau)
+        score += 25 * self.triangles(plateau)
+        score -= 10 * self.cases_dangereuses(plateau)
+        return score
+
+    def diff_pions(self, plateau):
+        """Calcule la différence de pions IA - adversaire."""
+        pass
+
+    def coins(self, plateau):
+        """Compte les coins occupés par l'IA et l'adversaire."""
+        pass
+
+    def mobilite(self, plateau):
+        """Calcule la mobilité (coups possibles IA - adversaire)."""
+        pass
+
+    def stabilite(self, plateau):
+        """Évalue les pions stables (non retournables) de l'IA et de l'adversaire."""
+        pass
+
+    def triangles(self, plateau):
+        """Détecte les formations en triangle autour des coins."""
+        pass
+
+    def cases_dangereuses(self, plateau):
+        """Évalue les cases dangereuses adjacentes aux coins."""
+        pass
+
+    def get_valid_moves(self, plateau, joueur):
+        """Retourne la liste des coups valides pour le joueur donné."""
+        pass
+
+    def apply_move(self, plateau, coup, joueur):
+        """Applique un coup sur le plateau et retourne le nouvel état."""
+        pass
+
+    def count_pieces(self, plateau, joueur):
+        """Compte le nombre de pièces appartenant au joueur sur le plateau."""
+        pass
+
+    def game_over(self, plateau):
+        """Indique si la partie est terminée (aucun coup valide restant)."""
+        pass
 
 def main():
     root = tk.Tk()
