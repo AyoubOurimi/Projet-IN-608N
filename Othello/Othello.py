@@ -25,6 +25,9 @@ class Othello:
         self.plateau[self.size_4][self.size_3] = self.NOIR
         self.plateau[self.size_4][self.size_4] = self.BLANC
 
+        # ⚠️ TEMPORAIRE: on créer l'ia vite fait pour les tests
+        self.ai_player = IAOthello(couleur=self.NOIR, profondeur_max=3)
+        
         self.canvas = tk.Canvas(self.fenetre, width=self.size * self.cellules_size, height=self.size * self.cellules_size, bg="green")
         self.canvas.pack()
 
@@ -92,6 +95,8 @@ class Othello:
                     #les deux ne peuvent pas jouer, alors on verif la fin de partie
                     self.verifier_fin_partie()
                     return
+                
+                self.test_count_ia() #test pour voir le comptage des pions et la copie du tableau
 
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
@@ -213,12 +218,31 @@ class Othello:
                         fill="#A9A9A9",  # gris clair
                         outline="", tags=("coups_jouables",)
                     )
+
     def clignoter(self):
         """permet de faire clignoter les pions gris"""
         self.blink_state = not self.blink_state
         couleur = "#A9A9A9" if self.blink_state else ""
         self.canvas.itemconfig("coups_jouables", fill=couleur)
         self.fenetre.after(self.clignotement_delay, self.clignoter)
+
+    def clone_plateau(self, plateau):
+        """Copie du tableau de jeu, dans un nouveau pour nos calculs"""
+        copie = []
+        for ligne in plateau:
+            copie.append(ligne[:])  #copie de chaque ligne
+        return copie
+    
+    """ ⚠️⚠️ TEST POUR LES FONCTIONS DE L'IA"""
+    def test_count_ia(self):
+        #On test le clonage du plateau
+        plateau_clone = self.clone_plateau(self.plateau)
+
+        #On appelle la fonction pour compter les pièces
+        noirs, blancs = self.ai_player.count_pieces(plateau_clone)
+
+        print(f"[IA] Compte les pions: Noirs = {noirs}, Blancs = {blancs}")
+        return
 
 class IAOthello:
     def __init__(self, couleur, profondeur_max):
@@ -277,9 +301,17 @@ class IAOthello:
         """Applique un coup sur le plateau et retourne le nouvel état."""
         pass
 
-    def count_pieces(self, plateau, joueur):
+    def count_pieces(self, plateau):
         """Compte le nombre de pièces appartenant au joueur sur le plateau."""
-        pass
+        nb_noirs = 0
+        nb_blancs = 0
+        for ligne in range(8):
+            for col in range(8):
+                if plateau[ligne][col] == "N":
+                    nb_noirs += 1
+                elif plateau[ligne][col] == "B":
+                    nb_blancs += 1
+        return nb_noirs, nb_blancs
 
     def game_over(self, plateau):
         """Indique si la partie est terminée (aucun coup valide restant)."""
