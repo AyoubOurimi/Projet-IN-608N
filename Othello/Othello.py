@@ -3,73 +3,72 @@ import tkinter.messagebox as messagebox
 import random as random
 
 class Othello:
-    def __init__(self, fenetre, mode_ia = False, couleur_ia = None):
+    def __init__(self, fenetre, mode_ia=False, couleur_ia=None):
         self.fenetre = fenetre
+        self.fenetre.title("Othello")
+
         icone = tk.PhotoImage(file="Othello/Logo_Tkinter.png")
         self.fenetre.iconphoto(False, icone)
-        self.fenetre.title("Othello")
+
+        self.image_plateau = tk.PhotoImage(file="Othello/Plateau2.png")
+        self.size = 8  # Taille du plateau (8x8)
+        self.image_size = self.image_plateau.width()  # supposé carré
+        self.marge = 17.5  # bordure autour du plateau
+        self.cellules_size = (self.image_size - 2 * self.marge) / 8
+
+        self.canvas = tk.Canvas(self.fenetre,width=self.image_plateau.width(),height=self.image_plateau.height())
+        self.canvas.pack()
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_plateau) #affichage de l'image
 
         self.mode_ia = mode_ia
         self.couleur_ia = couleur_ia
         if self.mode_ia:
             self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=3)
 
-        self.size = 8   
-        self.size_3 = self.size // 2 - 1   
-        self.size_4 = self.size // 2
-
-        self.cellules_size = 60   
-
         self.NOIR = "N"
         self.BLANC = "B"
 
         self.plateau = [[None for _ in range(self.size)] for _ in range(self.size)]
-
-        self.plateau[self.size_3][self.size_3] = self.BLANC
-        self.plateau[self.size_3][self.size_4] = self.NOIR
-        self.plateau[self.size_4][self.size_3] = self.NOIR
-        self.plateau[self.size_4][self.size_4] = self.BLANC
-        
-        self.canvas = tk.Canvas(self.fenetre, width=self.size * self.cellules_size, height=self.size * self.cellules_size, bg="green")
-        self.canvas.pack()
+        mid = self.size // 2
+        self.plateau[mid - 1][mid - 1] = self.BLANC
+        self.plateau[mid - 1][mid]     = self.NOIR
+        self.plateau[mid][mid - 1]     = self.NOIR
+        self.plateau[mid][mid]         = self.BLANC
 
         self.canvas.bind("<Button-1>", self.gerer_clic)
-
         self.joueur_courant = self.NOIR
 
-        self.score_label = tk.Label(self.fenetre, text=f"Scores : Noirs: 2 | Blancs: 2 | Tour Actuel: {self.joueur_courant}", font=("Arial", 14))
+        self.score_label = tk.Label(self.fenetre, font=("Arial", 14))
         self.score_label.pack(pady=10)
-
+        self.mise_à_jour_scores()
         self.dessiner_plateau()
 
-        self.blink_state = False #allumé éteint
-        self.clignotement_delay = 1000  # 1 seconde        
+        self.blink_state = False
+        self.clignotement_delay = 1000  # ms
         self.fenetre.after(self.clignotement_delay, self.clignoter)
 
     def dessiner_plateau(self):
         self.canvas.delete("all")
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_plateau)
+
         for lig in range(self.size):
             for col in range(self.size):
-                x1 = col * self.cellules_size
-                y1 = lig * self.cellules_size
+                x1 = self.marge + col * self.cellules_size
+                y1 = self.marge + lig * self.cellules_size
                 x2 = x1 + self.cellules_size
                 y2 = y1 + self.cellules_size
 
-                # Dessin des cases du plateau
-                self.canvas.create_rectangle(x1, y1, x2, y2, outline="black", fill="green")
-
-                # Dessin des pions
                 if self.plateau[lig][col] == self.NOIR:
-                    self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="black", outline="white", width=1)
+                    self.canvas.create_oval(x1 + 8, y1 + 8, x2 - 8, y2 - 8, fill="black", outline="white", width=1)
                 elif self.plateau[lig][col] == self.BLANC:
-                    self.canvas.create_oval(x1 + 5, y1 + 5, x2 - 5, y2 - 5, fill="white", outline="black", width=1)
-        
+                    self.canvas.create_oval(x1 + 8, y1 + 8, x2 - 8, y2 - 8, fill="white", outline="black", width=1)
+
         self.afficher_coups_jouables()
 
     
     def gerer_clic(self, event):
-        col = event.x // self.cellules_size
-        lig = event.y // self.cellules_size
+        col = int((event.x - self.marge) // self.cellules_size)
+        lig = int((event.y - self.marge) // self.cellules_size)
 
         if 0 <= lig < self.size and 0 <= col < self.size:
             if self.coup_valide(lig, col, self.joueur_courant):
@@ -208,21 +207,22 @@ class Othello:
             messagebox.showinfo("Fin de Partie", f"Score final - Noirs: {pions_noir} | Blancs: {pions_blanc}\n{resultat}")
     
     def afficher_coups_jouables(self):
-        """Affiche un petit cercle gris pour les coups dit jouables pour le joueur actuel"""
         for lig in range(self.size):
             for col in range(self.size):
                 if self.coup_valide(lig, col, self.joueur_courant):
-                    x1 = col * self.cellules_size
-                    y1 = lig * self.cellules_size
+                    x1 = self.marge + col * self.cellules_size
+                    y1 = self.marge + lig * self.cellules_size
                     x2 = x1 + self.cellules_size
                     y2 = y1 + self.cellules_size
-                    cx, cy = (x1 + x2)//2, (y1 + y2)//2
-                    r = 8
+                    cx = (x1 + x2) // 2
+                    cy = (y1 + y2) // 2
                     rayon_gris = self.cellules_size // 2 - 10
                     self.canvas.create_oval(
-                        cx - rayon_gris, cy - rayon_gris, cx + rayon_gris, cy + rayon_gris,
-                        fill="#A9A9A9",  # gris clair
-                        outline="", tags=("coups_jouables",)
+                        cx - rayon_gris, cy - rayon_gris,
+                        cx + rayon_gris, cy + rayon_gris,
+                        fill="#A9A9A9",
+                        outline="",
+                        tags=("coups_jouables",)
                     )
 
     def clignoter(self):
@@ -361,8 +361,8 @@ class IAOthello:
 def menu_accueil():
     root = tk.Tk()
     root.title("Othello - Menu")
-    window_width = 480
-    window_height = 540
+    window_width = 1004
+    window_height = 1004
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
     x_coord = (screen_width // 2) - (window_width // 2)
