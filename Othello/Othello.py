@@ -10,7 +10,7 @@ class Othello:
         icone = tk.PhotoImage(file="Othello/Logo_Tkinter.png")
         self.fenetre.iconphoto(False, icone)
 
-        self.image_plateau = tk.PhotoImage(file="Othello/Plateau2.png")
+        self.image_plateau = tk.PhotoImage(file="Othello/Plateau.png")
         self.size = 8  # Taille du plateau (8x8)
         self.image_size = self.image_plateau.width()  # supposé carré
         self.marge = 17.5  # bordure autour du plateau
