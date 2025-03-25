@@ -20,6 +20,10 @@ class Othello:
         self.canvas.pack()
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_plateau) #affichage de l'image
 
+        self.pion_noir_img = tk.PhotoImage(file="Othello/pion_noir.png")
+        self.pion_blanc_img = tk.PhotoImage(file="Othello/pion_blanc.png")
+        self.pion_gris_img = tk.PhotoImage(file="Othello/pion_gris.png")
+
         self.mode_ia = mode_ia
         self.couleur_ia = couleur_ia
         if self.mode_ia:
@@ -59,9 +63,9 @@ class Othello:
                 y2 = y1 + self.cellules_size
 
                 if self.plateau[lig][col] == self.NOIR:
-                    self.canvas.create_oval(x1 + 8, y1 + 8, x2 - 8, y2 - 8, fill="black", outline="white", width=1)
+                    self.canvas.create_image((x1 + x2) // 2, (y1 + y2) // 2, image=self.pion_noir_img)
                 elif self.plateau[lig][col] == self.BLANC:
-                    self.canvas.create_oval(x1 + 8, y1 + 8, x2 - 8, y2 - 8, fill="white", outline="black", width=1)
+                    self.canvas.create_image((x1 + x2) // 2, (y1 + y2) // 2, image=self.pion_blanc_img)
 
         self.afficher_coups_jouables()
 
@@ -217,19 +221,14 @@ class Othello:
                     cx = (x1 + x2) // 2
                     cy = (y1 + y2) // 2
                     rayon_gris = self.cellules_size // 2 - 10
-                    self.canvas.create_oval(
-                        cx - rayon_gris, cy - rayon_gris,
-                        cx + rayon_gris, cy + rayon_gris,
-                        fill="#A9A9A9",
-                        outline="",
-                        tags=("coups_jouables",)
-                    )
+                    image_id = self.canvas.create_image(cx, cy, image=self.pion_gris_img, tags=("coups_jouables",))
 
     def clignoter(self):
-        """permet de faire clignoter les pions gris"""
         self.blink_state = not self.blink_state
-        couleur = "#A9A9A9" if self.blink_state else ""
-        self.canvas.itemconfig("coups_jouables", fill=couleur)
+        if self.blink_state:
+            self.canvas.itemconfigure("coups_jouables", state="normal")
+        else:
+            self.canvas.itemconfigure("coups_jouables", state="hidden")
         self.fenetre.after(self.clignotement_delay, self.clignoter)
 
     def clone_plateau(self, plateau):
