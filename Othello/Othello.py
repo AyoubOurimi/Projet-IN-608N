@@ -26,7 +26,7 @@ class Othello:
         self.plateau[self.size_4][self.size_4] = self.BLANC
 
         # ⚠️ TEMPORAIRE: on créer l'ia vite fait pour les tests
-        self.ai_player = IAOthello(couleur=self.NOIR, profondeur_max=3)
+        self.ai_player = IAOthello(jeu=self, couleur=self.NOIR, profondeur_max=3)
         
         self.canvas = tk.Canvas(self.fenetre, width=self.size * self.cellules_size, height=self.size * self.cellules_size, bg="green")
         self.canvas.pack()
@@ -96,7 +96,9 @@ class Othello:
                     self.verifier_fin_partie()
                     return
                 
-                self.test_count_ia() #test pour voir le comptage des pions et la copie du tableau
+                self.test_diff_ia() #test pour verif la diff des pions
+                self.test_coins_ia() #test pour verif les pions des coins 
+                self.test_get_valid_moves()
 
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
@@ -234,19 +236,22 @@ class Othello:
         return copie
     
     """ ⚠️⚠️ TEST POUR LES FONCTIONS DE L'IA"""
-    def test_count_ia(self):
-        #On test le clonage du plateau
-        plateau_clone = self.clone_plateau(self.plateau)
+    def test_diff_ia(self):
+        diff = self.ai_player.diff_pions(self.plateau)
+        print(f"[IA] Différence pions (IA - Adv): {diff}")
+    
+    def test_coins_ia(self):
+        score_coins = self.ai_player.coins(self.plateau)
+        print(f"[IA] Score de coins : {score_coins}")
 
-        #On appelle la fonction pour compter les pièces
-        noirs, blancs = self.ai_player.count_pieces(plateau_clone)
-
-        print(f"[IA] Compte les pions: Noirs = {noirs}, Blancs = {blancs}")
-        return
+    def test_get_valid_moves(self):
+        coups = self.ai_player.get_valid_moves(self.plateau, self.ai_player.couleur)
+        print(f"[IA] Coups valides (via Othello.coup_valide) : {coups}")
 
 class IAOthello:
-    def __init__(self, couleur, profondeur_max):
+    def __init__(self, jeu, couleur, profondeur_max):
         """Initialise l'IA avec sa couleur et la profondeur max de recherche."""
+        self.jeu = jeu  # référence vers l'objet Othello
         self.couleur = couleur
         self.profondeur_max = profondeur_max
 
@@ -271,11 +276,41 @@ class IAOthello:
 
     def diff_pions(self, plateau):
         """Calcule la différence de pions IA - adversaire."""
-        pass
+        def count_pieces(plateau):
+            nb_noirs = 0
+            nb_blancs = 0
+            for ligne in range(8):
+                for col in range(8):
+                    if plateau[ligne][col] == "N":
+                        nb_noirs += 1
+                    elif plateau[ligne][col] == "B":
+                        nb_blancs += 1
+            return nb_noirs, nb_blancs
+
+        nb_noirs, nb_blancs = count_pieces(plateau)
+
+        if self.couleur == "N":
+            nb_Ia = nb_noirs
+            nb_adv = nb_blancs
+        else:
+            nb_Ia = nb_blancs
+            nb_adv = nb_noirs
+
+        return nb_Ia - nb_adv
+
 
     def coins(self, plateau):
         """Compte les coins occupés par l'IA et l'adversaire."""
-        pass
+        coins_pos = [[0,0], [0,7], [7,0], [7,7]]
+        score = 0
+        adv = "B" if self.couleur == "N" else "N"
+        for x,y in coins_pos:
+            if plateau[x][y] == self.couleur:
+                score += 1
+            elif plateau[x][y] == adv:
+                score -=1
+        return score 
+
 
     def mobilite(self, plateau):
         """Calcule la mobilité (coups possibles IA - adversaire)."""
@@ -294,24 +329,18 @@ class IAOthello:
         pass
 
     def get_valid_moves(self, plateau, joueur):
-        """Retourne la liste des coups valides pour le joueur donné."""
-        pass
+        """Utilise la méthode coup_valide déjà existante dans Othello."""
+        coups_valides = []
+        for lig in range(8):
+            for col in range(8):
+                if plateau[lig][col] is None and self.jeu.coup_valide(lig, col, joueur):
+                    coups_valides.append((lig, col))
+        return coups_valides
+
 
     def apply_move(self, plateau, coup, joueur):
         """Applique un coup sur le plateau et retourne le nouvel état."""
         pass
-
-    def count_pieces(self, plateau):
-        """Compte le nombre de pièces appartenant au joueur sur le plateau."""
-        nb_noirs = 0
-        nb_blancs = 0
-        for ligne in range(8):
-            for col in range(8):
-                if plateau[ligne][col] == "N":
-                    nb_noirs += 1
-                elif plateau[ligne][col] == "B":
-                    nb_blancs += 1
-        return nb_noirs, nb_blancs
 
     def game_over(self, plateau):
         """Indique si la partie est terminée (aucun coup valide restant)."""
