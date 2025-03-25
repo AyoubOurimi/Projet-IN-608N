@@ -3,11 +3,16 @@ import tkinter.messagebox as messagebox
 import random as random
 
 class Othello:
-    def __init__(self, fenetre):
+    def __init__(self, fenetre, mode_ia = False, couleur_ia = None):
         self.fenetre = fenetre
         icone = tk.PhotoImage(file="Othello/Logo_Tkinter.png")
         self.fenetre.iconphoto(False, icone)
         self.fenetre.title("Othello")
+
+        self.mode_ia = mode_ia
+        self.couleur_ia = couleur_ia
+        if self.mode_ia:
+            self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=3)
 
         self.size = 8   
         self.size_3 = self.size // 2 - 1   
@@ -24,9 +29,6 @@ class Othello:
         self.plateau[self.size_3][self.size_4] = self.NOIR
         self.plateau[self.size_4][self.size_3] = self.NOIR
         self.plateau[self.size_4][self.size_4] = self.BLANC
-
-        # ⚠️ TEMPORAIRE: on créer l'ia vite fait pour les tests
-        self.ai_player = IAOthello(jeu=self, couleur=self.NOIR, profondeur_max=3)
         
         self.canvas = tk.Canvas(self.fenetre, width=self.size * self.cellules_size, height=self.size * self.cellules_size, bg="green")
         self.canvas.pack()
@@ -96,10 +98,11 @@ class Othello:
                     self.verifier_fin_partie()
                     return
                 
-                self.test_diff_ia() #test pour verif la diff des pions
-                self.test_coins_ia() #test pour verif les pions des coins 
-                self.test_get_valid_moves() #test pour verif les coup valide sous forme de liste
-                self.test_mobilite() #test pour verif qui a le plus de mobilite entre IA et joueur
+                if self.mode_ia:
+                    self.test_diff_ia() #test pour verif la diff des pions
+                    self.test_coins_ia() #test pour verif les pions des coins 
+                    self.test_get_valid_moves() #test pour verif les coup valide sous forme de liste
+                    self.test_mobilite() #test pour verif qui a le plus de mobilite entre IA et joueur
 
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
@@ -355,10 +358,42 @@ class IAOthello:
         """Indique si la partie est terminée (aucun coup valide restant)."""
         pass
 
-def main():
+def menu_accueil():
     root = tk.Tk()
-    Othello(root)
+    root.title("Othello - Menu")
+    window_width = 480
+    window_height = 540
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x_coord = (screen_width // 2) - (window_width // 2)
+    y_coord = (screen_height // 2) - (window_height // 2)
+    root.geometry(f"{window_width}x{window_height}+{x_coord}+{y_coord}")    
+    icone = tk.PhotoImage(file="Othello/Logo_Tkinter.png")
+    root.iconphoto(False, icone)
+
+    frame = tk.Frame(root)
+    frame.pack(padx=30, pady=30)
+
+    label = tk.Label(frame, text="Bienvenue dans Othello", font=("Arial", 18))
+    label.pack(pady=20)
+
+    def lancer_pvp():
+        frame.destroy()
+        Othello(root)  # on lance le joueur contre joueur
+
+    def lancer_ia():
+        frame.destroy()
+        couleur_ia = random.choice(["N", "B"])
+        print(f"[INFO] L'IA joue en {couleur_ia}")
+        Othello(root, mode_ia=True, couleur_ia=couleur_ia)
+
+    btn_pvp = tk.Button(frame, text="Joueur contre Joueur", font=("Arial", 14), command=lancer_pvp)
+    btn_pvp.pack(pady=10)
+
+    btn_ia = tk.Button(frame, text="Joueur contre IA", font=("Arial", 14), command=lancer_ia)
+    btn_ia.pack(pady=10)
+
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    menu_accueil()
