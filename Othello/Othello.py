@@ -98,7 +98,8 @@ class Othello:
                 
                 self.test_diff_ia() #test pour verif la diff des pions
                 self.test_coins_ia() #test pour verif les pions des coins 
-                self.test_get_valid_moves()
+                self.test_get_valid_moves() #test pour verif les coup valide sous forme de liste
+                self.test_mobilite() #test pour verif qui a le plus de mobilite entre IA et joueur
 
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
@@ -248,6 +249,10 @@ class Othello:
         coups = self.ai_player.get_valid_moves(self.plateau, self.ai_player.couleur)
         print(f"[IA] Coups valides (via Othello.coup_valide) : {coups}")
 
+    def test_mobilite(self):
+        mobilite_diff = self.ai_player.mobilite(self.plateau)
+        print(f"[IA] Difference de mobilite : {mobilite_diff}")
+
 class IAOthello:
     def __init__(self, jeu, couleur, profondeur_max):
         """Initialise l'IA avec sa couleur et la profondeur max de recherche."""
@@ -298,7 +303,6 @@ class IAOthello:
 
         return nb_Ia - nb_adv
 
-
     def coins(self, plateau):
         """Compte les coins occupés par l'IA et l'adversaire."""
         coins_pos = [[0,0], [0,7], [7,0], [7,7]]
@@ -311,10 +315,22 @@ class IAOthello:
                 score -=1
         return score 
 
+    def get_valid_moves(self, plateau, joueur):
+        """Utilise la méthode coup_valide déjà existante dans Othello."""
+        coups_valides = []
+        for lig in range(8):
+            for col in range(8):
+                if plateau[lig][col] is None and self.jeu.coup_valide(lig, col, joueur):
+                    coups_valides.append((lig, col))
+        return coups_valides
 
     def mobilite(self, plateau):
-        """Calcule la mobilité (coups possibles IA - adversaire)."""
-        pass
+        """Calcule la mobilité (coups possibles IA - adversaire).""" 
+        nb_IA  = len(self.get_valid_moves(plateau, self.couleur))
+        adv = "B" if self.couleur == "N" else "N"
+        nb_adv = len(self.get_valid_moves(plateau, adv))
+
+        return nb_IA - nb_adv
 
     def stabilite(self, plateau):
         """Évalue les pions stables (non retournables) de l'IA et de l'adversaire."""
@@ -328,14 +344,7 @@ class IAOthello:
         """Évalue les cases dangereuses adjacentes aux coins."""
         pass
 
-    def get_valid_moves(self, plateau, joueur):
-        """Utilise la méthode coup_valide déjà existante dans Othello."""
-        coups_valides = []
-        for lig in range(8):
-            for col in range(8):
-                if plateau[lig][col] is None and self.jeu.coup_valide(lig, col, joueur):
-                    coups_valides.append((lig, col))
-        return coups_valides
+    
 
 
     def apply_move(self, plateau, coup, joueur):
