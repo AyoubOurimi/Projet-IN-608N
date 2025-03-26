@@ -106,6 +106,7 @@ class Othello:
                     self.test_coins_ia() #test pour verif les pions des coins 
                     self.test_get_valid_moves() #test pour verif les coup valide sous forme de liste
                     self.test_mobilite() #test pour verif qui a le plus de mobilite entre IA et joueur
+                    self.test_apply_move() #test pour voir le calcul des prochains coups possibles
 
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
@@ -254,17 +255,45 @@ class Othello:
     def test_mobilite(self):
         mobilite_diff = self.ai_player.mobilite(self.plateau)
         print(f"[IA] Difference de mobilite : {mobilite_diff}")
+    
+    def test_apply_move(self):
+        if self.mode_ia:
+            print("[IA]test apply_move()")
+            coups = self.ai_player.get_valid_moves(self.plateau, self.ai_player.couleur)
+            if coups:
+                coup = coups[0]
+                print(f"[IA]coup testé : {coup}")
+                nouveau_plateau = self.ai_player.apply_move(self.plateau, coup, self.ai_player.couleur)
+                print("[IA]plateau après le coup :")
+                for ligne in nouveau_plateau:
+                    print(" ".join(p if p else "." for p in ligne))
+            else:
+                print("[IA]aucun coup valide à tester.")
 
 class IAOthello:
     def __init__(self, jeu, couleur, profondeur_max):
         """Initialise l'IA avec sa couleur et la profondeur max de recherche."""
-        self.jeu = jeu  # référence vers l'objet Othello
+        self.jeu = jeu
         self.couleur = couleur
         self.profondeur_max = profondeur_max
 
     def jouer_coup(self, plateau):
-        """Calcule et joue le meilleur coup possible pour l'IA sur le plateau."""
-        pass
+        meilleur_score = float("-inf") #-inf pour maximiser notre coup
+        meilleur_coup = None
+
+        for coup in self.get_valid_moves(plateau, self.couleur): #on parcours tous les coups possibles et on prend le meilleur (via min-max)
+            nouveau_plateau = self.apply_move(plateau, coup, self.couleur)
+            score = self.minmax(nouveau_plateau, self.profondeur_max - 1, float("-inf"), float("inf"), False)
+
+            if score > meilleur_score:
+                meilleur_score = score
+                meilleur_coup = coup
+        if meilleur_coup: #on applique le meilleur coup sur le plateau
+            ligne, col = meilleur_coup
+            self.jeu.plateau[ligne][col] = self.couleur
+            self.jeu.retourner_pions(ligne, col, self.couleur)
+
+        return meilleur_coup
 
     def minmax(self, plateau, profondeur, alpha, beta, maximisant):
         """Algorithme Min-Max avec élagage alpha-bêta pour choisir un coup."""
@@ -350,8 +379,25 @@ class IAOthello:
 
 
     def apply_move(self, plateau, coup, joueur):
-        """Applique un coup sur le plateau et retourne le nouvel état."""
-        pass
+        """Simule un certain coup sur le plateau et renvoie une copie du nouveau plateau"""
+        lig, col = coup
+        nouveau_plateau = self.jeu.clone_plateau(plateau)
+        nouveau_plateau[lig][col] = joueur
+        adversaire = "B" if joueur == "N" else "N"
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        #même principe que coup valide dans la classe Othello
+        for dx, dy in directions:
+            x, y = lig + dx, col + dy
+            pions_a_retourner = []
+            while 0 <= x < 8 and 0 <= y < 8 and nouveau_plateau[x][y] == adversaire:
+                pions_a_retourner.append((x, y))
+                x += dx
+                y += dy
+            if pions_a_retourner and 0 <= x < 8 and 0 <= y < 8 and nouveau_plateau[x][y] == joueur:
+                for rx, ry in pions_a_retourner:
+                    nouveau_plateau[rx][ry] = joueur
+        return nouveau_plateau
 
     def game_over(self, plateau):
         """Indique si la partie est terminée (aucun coup valide restant)."""
