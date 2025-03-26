@@ -1,6 +1,7 @@
 import tkinter as tk
 import tkinter.messagebox as messagebox
 import random as random
+import time
 
 class Othello:
     def __init__(self, fenetre, mode_ia=False, couleur_ia=None):
@@ -27,7 +28,7 @@ class Othello:
         self.mode_ia = mode_ia
         self.couleur_ia = couleur_ia
         if self.mode_ia:
-            self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=3)
+            self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=5)
 
         self.NOIR = "N"
         self.BLANC = "B"
@@ -51,6 +52,9 @@ class Othello:
         self.clignotement_delay = 1000  # ms
         self.fenetre.after(self.clignotement_delay, self.clignoter)
 
+        if self.mode_ia and self.joueur_courant == self.couleur_ia:
+            self.faire_jouer_ia()
+
     def dessiner_plateau(self):
         self.canvas.delete("all")
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_plateau)
@@ -69,7 +73,6 @@ class Othello:
 
         self.afficher_coups_jouables()
 
-    
     def gerer_clic(self, event):
         col = int((event.x - self.marge) // self.cellules_size)
         lig = int((event.y - self.marge) // self.cellules_size)
@@ -90,6 +93,8 @@ class Othello:
 
                 if self.peut_jouer(prochain):
                     self.joueur_courant = prochain
+                    if self.mode_ia and self.joueur_courant == self.couleur_ia:
+                        self.faire_jouer_ia()
                 elif self.peut_jouer(joueur_actuel):
                     messagebox.showinfo(
                         "Passer le tour",
@@ -238,6 +243,20 @@ class Othello:
         for ligne in plateau:
             copie.append(ligne[:])  #copie de chaque ligne
         return copie
+
+    def faire_jouer_ia(self):
+        if self.peut_jouer(self.couleur_ia):
+            self.fenetre.update()
+            time.sleep(1)
+            self.ai_player.jouer_coup(self.plateau)
+            self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
+            self.mise_à_jour_scores()
+            self.dessiner_plateau()
+        else:
+            # Si l'IA ne peut pas jouer, on reste sur le joueur humain
+            messagebox.showinfo("Passer le tour", "L'IA ne peut pas jouer. C'est à vous de jouer.")
+            self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
+
     
     """ ⚠️⚠️ TEST POUR LES FONCTIONS DE L'IA"""
     def test_diff_ia(self):
@@ -332,9 +351,9 @@ class IAOthello:
         score += 10 * self.diff_pions(plateau)
         score += 20 * self.coins(plateau)
         score += 15 * self.mobilite(plateau)
-        score += 10 * self.stabilite(plateau)
-        score += 25 * self.triangles(plateau)
-        score -= 10 * self.cases_dangereuses(plateau)
+        #score += 10 * self.stabilite(plateau)
+        #score += 25 * self.triangles(plateau)
+        #score -= 10 * self.cases_dangereuses(plateau)
         return score
 
     def diff_pions(self, plateau):
@@ -427,8 +446,10 @@ class IAOthello:
         return nouveau_plateau
 
     def game_over(self, plateau):
-        """Indique si la partie est terminée (aucun coup valide restant)."""
-        pass
+        """Retourne True si aucun joueur ne peut encore jouer, sinon False."""
+        noir_peut_jouer = bool(self.get_valid_moves(plateau, "N"))
+        blanc_peut_jouer = bool(self.get_valid_moves(plateau, "B"))
+        return not (noir_peut_jouer or blanc_peut_jouer)
 
 def menu_accueil():
     root = tk.Tk()
