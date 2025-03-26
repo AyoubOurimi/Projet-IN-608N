@@ -89,22 +89,17 @@ class Othello:
                 self.dessiner_plateau()
 
                 # on cherche à déterminer le joueur suivant
-                prochain = self.BLANC if joueur_actuel == self.NOIR else self.NOIR
+                prochain = self.BLANC if self.joueur_courant == self.NOIR else self.NOIR
 
-                if self.peut_jouer(prochain):
+                if not self.peut_jouer(self.joueur_courant) and not self.peut_jouer(prochain):
+                    self.verifier_fin_partie()
+                    return
+                if not self.peut_jouer(prochain):
+                    messagebox.showinfo("Passer le tour", f"Le joueur {prochain} ne peut pas jouer. Le tour reste au joueur {self.joueur_courant}.")
+                else:
                     self.joueur_courant = prochain
                     if self.mode_ia and self.joueur_courant == self.couleur_ia:
                         self.faire_jouer_ia()
-                elif self.peut_jouer(joueur_actuel):
-                    messagebox.showinfo(
-                        "Passer le tour",
-                        f"Le joueur {prochain} ne peut pas jouer. Le tour reste au joueur {joueur_actuel}."
-                    )
-                    self.joueur_courant = joueur_actuel
-                else:
-                    #les deux ne peuvent pas jouer, alors on verif la fin de partie
-                    self.verifier_fin_partie()
-                    return
                 
                 if self.mode_ia:
                     self.test_diff_ia() #test pour verif la diff des pions
