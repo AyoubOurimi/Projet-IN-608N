@@ -292,13 +292,40 @@ class IAOthello:
             ligne, col = meilleur_coup
             self.jeu.plateau[ligne][col] = self.couleur
             self.jeu.retourner_pions(ligne, col, self.couleur)
-
         return meilleur_coup
 
     def minmax(self, plateau, profondeur, alpha, beta, maximisant):
         """Algorithme Min-Max avec élagage alpha-bêta pour choisir un coup."""
-        pass
+        if profondeur == 0 or self.game_over(plateau): #condition d'arrêt de la récursion
+            return self.evaluer_plateau(plateau)
+        
+        joueur = self.couleur if maximisant else ("B" if self.couleur == "N" else "N") #si maxisanr = true c'est le tour de l'IA, sinon c'est l'adversaire
+        coups_possibles = self.get_valid_moves(plateau, joueur)
 
+        if not coups_possibles: #aucun coup possible, on passe le tour et on continue la récursivité
+            return self.minmax(plateau, profondeur - 1, alpha, beta, not maximisant)
+
+        if maximisant: #l'IA veut le meilleur coup (maximisant)
+                max_eval = float("-inf")
+                for coup in coups_possibles:
+                    nouveau_plateau = self.apply_move(plateau, coup, joueur)
+                    evaluation = self.minmax(nouveau_plateau, profondeur - 1, alpha, beta, False) #on cherche le score minimisant pour le prochain coup du joueur
+                    max_eval = max(max_eval, evaluation) #on prend le meilleur pour l'IA
+                    alpha = max(alpha, evaluation) #alpha prend donc le meilleur score
+                    if beta <= alpha: #si l'adversaire de ne prendra pas cette branche on break
+                        break  # on applique l'élagage ici
+                return max_eval
+        else: #cas ou l'adversaire va jouer et essayer de minimiser notre score
+            min_eval = float("inf")
+            for coup in coups_possibles:
+                nouveau_plateau = self.apply_move(plateau, coup, joueur)
+                evaluation = self.minmax(nouveau_plateau, profondeur - 1, alpha, beta, True)
+                min_eval = min(min_eval, evaluation) #même principe qu'en haut, sauf qu'on garde le pire score pour le joueur
+                beta = min(beta, evaluation) #pire score trouvé dans beta
+                if beta <= alpha:
+                    break  #élagage alpha bete ici
+            return min_eval
+        
     def evaluer_plateau(self, plateau):
         """Évalue le plateau selon une heuristique avancée."""
         score = 0
