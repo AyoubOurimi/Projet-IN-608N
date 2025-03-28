@@ -96,6 +96,8 @@ class Othello:
                     return
                 if not self.peut_jouer(prochain):
                     messagebox.showinfo("Passer le tour", f"Le joueur {prochain} ne peut pas jouer. Le tour reste au joueur {self.joueur_courant}.")
+                    if self.mode_ia and self.joueur_courant == self.couleur_ia:
+                        self.faire_jouer_ia()
                 else:
                     self.joueur_courant = prochain
                     if self.mode_ia and self.joueur_courant == self.couleur_ia:
@@ -176,7 +178,10 @@ class Othello:
     def mise_à_jour_scores(self):
         pions_blanc = sum(row.count(self.BLANC) for row in self.plateau)
         pions_noir = sum(row.count(self.NOIR) for row in self.plateau)
-        self.score_label.config(text=f"Scores : Noirs: {pions_noir} | Blancs: {pions_blanc} | Tour Actuel: {self.joueur_courant}")
+        if self.mode_ia:
+            self.score_label.config(text=f"Scores : Noirs: {pions_noir} | Blancs: {pions_blanc} | Couleur Joueur: {self.joueur_courant} | Couleur IA: {self.couleur_ia}")
+        else:
+            self.score_label.config(text=f"Scores : Noirs: {pions_noir} | Blancs: {pions_blanc} | Tour Actuel: {self.joueur_courant}")
 
     def peut_jouer(self, joueur):
         """Est ce que le joueur à un coup valide à jouer"""
@@ -212,25 +217,27 @@ class Othello:
             messagebox.showinfo("Fin de Partie", f"Score final - Noirs: {pions_noir} | Blancs: {pions_blanc}\n{resultat}")
     
     def afficher_coups_jouables(self):
-        for lig in range(self.size):
-            for col in range(self.size):
-                if self.coup_valide(lig, col, self.joueur_courant):
-                    x1 = self.marge + col * self.cellules_size
-                    y1 = self.marge + lig * self.cellules_size
-                    x2 = x1 + self.cellules_size
-                    y2 = y1 + self.cellules_size
-                    cx = (x1 + x2) // 2
-                    cy = (y1 + y2) // 2
-                    rayon_gris = self.cellules_size // 2 - 10
-                    image_id = self.canvas.create_image(cx, cy, image=self.pion_gris_img, tags=("coups_jouables",))
+        if self.joueur_courant != self.couleur_ia:
+            for lig in range(self.size):
+                for col in range(self.size):
+                    if self.coup_valide(lig, col, self.joueur_courant):
+                        x1 = self.marge + col * self.cellules_size
+                        y1 = self.marge + lig * self.cellules_size
+                        x2 = x1 + self.cellules_size
+                        y2 = y1 + self.cellules_size
+                        cx = (x1 + x2) // 2
+                        cy = (y1 + y2) // 2
+                        rayon_gris = self.cellules_size // 2 - 10
+                        image_id = self.canvas.create_image(cx, cy, image=self.pion_gris_img, tags=("coups_jouables",))
 
     def clignoter(self):
-        self.blink_state = not self.blink_state
-        if self.blink_state:
-            self.canvas.itemconfigure("coups_jouables", state="normal")
-        else:
-            self.canvas.itemconfigure("coups_jouables", state="hidden")
-        self.fenetre.after(self.clignotement_delay, self.clignoter)
+        if self.joueur_courant != self.couleur_ia:
+            self.blink_state = not self.blink_state
+            if self.blink_state:
+                self.canvas.itemconfigure("coups_jouables", state="normal")
+            else:
+                self.canvas.itemconfigure("coups_jouables", state="hidden")
+            self.fenetre.after(self.clignotement_delay, self.clignoter)
 
     def clone_plateau(self, plateau):
         """Copie du tableau de jeu, dans un nouveau pour nos calculs"""
@@ -247,9 +254,14 @@ class Othello:
             self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
             self.mise_à_jour_scores()
             self.dessiner_plateau()
+            if not self.peut_jouer(self.joueur_courant):
+                messagebox.showinfo("Passer le tour", f"Le joueur {self.joueur_courant} ne peut pas jouer. Le tour reste à l'IA.")
+                self.joueur_courant = self.couleur_ia
+                if not self.partie_terminee():
+                    self.faire_jouer_ia()
         else:
-            # Si l'IA ne peut pas jouer, on reste sur le joueur humain
-            messagebox.showinfo("Passer le tour", "L'IA ne peut pas jouer. C'est à vous de jouer.")
+            #si l'ia ne peut pas jouer, c'est encore au joueur de jouer
+            messagebox.showinfo("Passer le tour", "L'IA ne peut pas jouer")
             self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
 
     
@@ -416,9 +428,6 @@ class IAOthello:
         """Évalue les cases dangereuses adjacentes aux coins."""
         pass
 
-    
-
-
     def apply_move(self, plateau, coup, joueur):
         """Simule un certain coup sur le plateau et renvoie une copie du nouveau plateau"""
         lig, col = coup
@@ -447,6 +456,7 @@ class IAOthello:
         return not (noir_peut_jouer or blanc_peut_jouer)
 
 def menu_accueil():
+    """Menu d'accueil du jeu Othello."""
     root = tk.Tk()
     root.title("Othello - Menu")
     window_width = 1004
@@ -455,33 +465,55 @@ def menu_accueil():
     screen_height = root.winfo_screenheight()
     x_coord = (screen_width // 2) - (window_width // 2)
     y_coord = (screen_height // 2) - (window_height // 2)
-    root.geometry(f"{window_width}x{window_height}+{x_coord}+{y_coord}")    
-    icone = tk.PhotoImage(file="Othello/Logo_Tkinter.png")
-    root.iconphoto(False, icone)
-
-    frame = tk.Frame(root)
-    frame.pack(padx=30, pady=30)
-
-    label = tk.Label(frame, text="Bienvenue dans Othello", font=("Arial", 18))
-    label.pack(pady=20)
-
+    root.geometry(f"{window_width}x{window_height}+{x_coord}+{y_coord}")
+    root.configure(bg="#2c2c2c")
+    frame = tk.Frame(root, bg="#3a3a3a", bd=3, relief="raised")
+    frame.place(relx=0.5, rely=0.5, anchor="center", width=600, height=400)
+    label_title = tk.Label(frame, text="Bienvenue dans Othello",font=("Helvetica", 28, "bold"), bg="#3a3a3a", fg="white")
+    label_title.pack(pady=(40, 20))
+    style_bouton = {"font": ("Helvetica", 20),"bg": "#555555","fg": "white","activebackground": "#777777","activeforeground": "white","bd": 0,"relief": "flat","padx": 20,"pady": 10}
     def lancer_pvp():
         frame.destroy()
         Othello(root)  # on lance le joueur contre joueur
 
-    def lancer_ia():
+    def lancer_ia_menu():
+        """Lance le menu pour choisir le style de jeu de l'IA."""
         frame.destroy()
+        menu_ia_options(root)
+    
+    btn_pvp = tk.Button(frame, text="Joueur contre Joueur", command=lancer_pvp, **style_bouton)
+    btn_pvp.pack(pady=10, fill="x", padx=40)
+    btn_ia = tk.Button(frame, text="Joueur contre IA", command=lancer_ia_menu, **style_bouton)
+    btn_ia.pack(pady=10, fill="x", padx=40)
+    root.mainloop()
+
+
+def menu_ia_options(root):
+    """Menu pour choisir le style de jeu de l'ia"""
+    ia_frame = tk.Frame(root, bg="#3a3a3a", bd=3, relief="raised")
+    ia_frame.place(relx=0.5, rely=0.5, anchor="center", width=600, height=400)
+    label = tk.Label(ia_frame, text="Choisissez le mode IA",font=("Helvetica", 28, "bold"), bg="#3a3a3a", fg="white")
+    label.pack(pady=(40, 20))
+
+    mode_var = tk.StringVar(value="offensif")
+    modes = [("Offensif", "offensif"),("Défensif", "defensif"),("Stratégique", "strategique")]
+    for text, mode in modes:
+        rb = tk.Radiobutton(ia_frame, text=text, variable=mode_var, value=mode,font=("Helvetica", 20), bg="#3a3a3a", fg="white",activebackground="#3a3a3a", activeforeground="white",selectcolor="#555555")
+        rb.pack(pady=5)
+    style_bouton = {"font": ("Helvetica", 20),"bg": "#555555","fg": "white","activebackground": "#777777","activeforeground": "white","bd": 0,"relief": "flat","padx": 20,"pady": 10}
+
+    def confirmer_ia():
+        """Confirme le choix du style de jeu de l'IA et lance le jeu."""
+        ia_mode = mode_var.get()
+        print(f"[INFO] Mode IA sélectionné : {ia_mode}")
+        ia_frame.destroy()
         couleur_ia = random.choice(["N", "B"])
         print(f"[INFO] L'IA joue en {couleur_ia}")
         Othello(root, mode_ia=True, couleur_ia=couleur_ia)
+        #il faut une fois le mode choisis l'intégré dans le jeu principal, j'ai pas encore fait, mais quand on aura tout on pourra le faire rapidement
 
-    btn_pvp = tk.Button(frame, text="Joueur contre Joueur", font=("Arial", 14), command=lancer_pvp)
-    btn_pvp.pack(pady=10)
-
-    btn_ia = tk.Button(frame, text="Joueur contre IA", font=("Arial", 14), command=lancer_ia)
-    btn_ia.pack(pady=10)
-
-    root.mainloop()
+    btn_confirmer = tk.Button(ia_frame, text="Lancer l'IA", command=confirmer_ia, **style_bouton)
+    btn_confirmer.pack(pady=20, fill="x", padx=40)
 
 if __name__ == "__main__":
     menu_accueil()
