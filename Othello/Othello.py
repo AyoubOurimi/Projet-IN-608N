@@ -107,11 +107,14 @@ class Othello:
                     return
                 
                 if self.mode_ia:
-                    self.test_diff_ia() #test pour verif la diff des pions
-                    self.test_coins_ia() #test pour verif les pions des coins 
-                    self.test_get_valid_moves() #test pour verif les coup valide sous forme de liste
-                    self.test_mobilite() #test pour verif qui a le plus de mobilite entre IA et joueur
-                    self.test_apply_move() #test pour voir le calcul des prochains coups possibles
+                    self.test_diff_ia()
+                    self.test_coins_ia()
+                    self.test_get_valid_moves()
+                    self.test_mobilite()
+                    self.test_stabilite()
+                    self.test_triangles()
+                    self.test_cases_dangereuses()
+                    self.test_apply_move()
 
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
@@ -128,7 +131,6 @@ class Othello:
         """Retourne les pions adverses encadrés par le pion placé."""
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1),
                       (-1, -1), (-1, 1), (1, -1), (1, 1)]
-        #tableau des directions, j'ai pas trouvé plus simple pour visualiser le truc mais peut être vous aurez une vision plus opti
         #0,0 c'est le point de départ
         #la première ligne dans le tableau c'est les points à gauche(-1,0), à droite(1,0), en dessous(0,-1), et au dessus(0,1),
         #la deuxieme ligne c'est les points en haut à gauche(-1,-1), en haut à gauche(-1,1), en bas à droite (1,-1) et en haut à droite (1,1)
@@ -247,7 +249,7 @@ class Othello:
     def faire_jouer_ia(self):
         if self.peut_jouer(self.couleur_ia):
             self.fenetre.update()
-            time.sleep(1)
+            
             self.ai_player.jouer_coup(self.plateau)
             self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
             self.mise_à_jour_scores()
@@ -288,6 +290,19 @@ class Othello:
                     print(" ".join(p if p else "." for p in ligne))
             else:
                 print("[IA]aucun coup valide à tester.")
+    
+    def test_stabilite(self):
+        score_stabilite = self.ai_player.stabilite(self.plateau)
+        print(f"[IA] Score de stabilité : {score_stabilite}")
+
+    def test_triangles(self):
+        score_triangles = self.ai_player.triangles(self.plateau)
+        print(f"[IA] Score de triangles : {score_triangles}")
+
+    def test_cases_dangereuses(self):
+        score_danger = self.ai_player.cases_dangereuses(self.plateau)
+        print(f"[IA] Score de cases dangereuses : {score_danger}")
+
 
 class IAOthello:
     def __init__(self, jeu, couleur, profondeur_max):
@@ -351,9 +366,9 @@ class IAOthello:
         score += 10 * self.diff_pions(plateau)
         score += 20 * self.coins(plateau)
         score += 15 * self.mobilite(plateau)
-        #score += 10 * self.stabilite(plateau)
-        #score += 25 * self.triangles(plateau)
-        #score -= 10 * self.cases_dangereuses(plateau)
+        score += 10 * self.stabilite(plateau)
+        score += 25 * self.triangles(plateau)
+        score -= 10 * self.cases_dangereuses(plateau)
         return score
 
     def diff_pions(self, plateau):
@@ -410,18 +425,50 @@ class IAOthello:
         return nb_IA - nb_adv
 
     def stabilite(self, plateau):
-        """Évalue les pions stables (non retournables) de l'IA et de l'adversaire."""
-        pass
+        score = 0
+        adv = "B" if self.couleur == "N" else "N"
+
+        def est_sur_bord(x, y):
+            return x == 0 or x == 7 or y == 0 or y == 7
+
+        for x in range(8):
+            for y in range(8):
+                if plateau[x][y] == self.couleur and est_sur_bord(x, y):
+                    score += 1
+                elif plateau[x][y] == adv and est_sur_bord(x, y):
+                    score -= 1
+        return score
+
 
     def triangles(self, plateau):
-        """Détecte les formations en triangle autour des coins."""
-        pass
+        triangles_pos = [[(0,0), (0,1), (1,0)], [(0,7), (0,6), (1,7)], [(7,0), (6,0), (7,1)], [(7,7), (6,7), (7,6)]]
+        score = 0
+        adv = "B" if self.couleur == "N" else "N"
+
+        for triangle in triangles_pos:
+            nb_IA = sum(1 for (x, y) in triangle if plateau[x][y] == self.couleur)
+            nb_adv = sum(1 for (x, y) in triangle if plateau[x][y] == adv)
+
+            if nb_IA == 3:
+                score += 1
+            elif nb_adv == 3:
+                score -= 1
+
+        return score
+
 
     def cases_dangereuses(self, plateau):
-        """Évalue les cases dangereuses adjacentes aux coins."""
-        pass
+        dangereuses_pos = [(0,1), (1,0), (1,1), (0,6), (1,7), (1,6), (6,0), (6,1), (7,1), (6,7), (7,6), (6,6)]
+        score = 0
+        adv = "B" if self.couleur == "N" else "N"
 
-    
+        for x, y in dangereuses_pos:
+            if plateau[x][y] == self.couleur:
+                score += 1
+            elif plateau[x][y] == adv:
+                score -= 1
+
+        return score
 
 
     def apply_move(self, plateau, coup, joueur):
