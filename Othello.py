@@ -5,7 +5,7 @@ import random as random
 import time
 
 class Othello:
-    def __init__(self, fenetre, mode_ia=False, couleur_ia=None):
+    def __init__(self, fenetre, style_ia, mode_ia=False, couleur_ia=None):
         self.fenetre = fenetre
         self.fenetre.title("Othello")
 
@@ -26,20 +26,21 @@ class Othello:
         self.pion_blanc_img = tk.PhotoImage(file="Othello/pion_blanc.png")
         self.pion_gris_img = tk.PhotoImage(file="Othello/pion_gris.png")
 
+        self.style_ia = style_ia
         self.mode_ia = mode_ia
         self.couleur_ia = couleur_ia
         if self.mode_ia:
-            self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=5)
+            self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=5, style=self.style_ia)
 
         self.NOIR = "N"
         self.BLANC = "B"
 
         self.plateau = [[None for _ in range(self.size)] for _ in range(self.size)]
         mid = self.size // 2
-        self.plateau[mid - 1][mid - 1] = self.BLANC
-        self.plateau[mid - 1][mid]     = self.NOIR
-        self.plateau[mid][mid - 1]     = self.NOIR
-        self.plateau[mid][mid]         = self.BLANC
+        self.plateau[mid - 1][mid - 1]= self.BLANC
+        self.plateau[mid - 1][mid] = self.NOIR
+        self.plateau[mid][mid - 1]= self.NOIR
+        self.plateau[mid][mid] = self.BLANC
 
         self.canvas.bind("<Button-1>", self.gerer_clic)
         self.joueur_courant = self.NOIR
@@ -50,7 +51,7 @@ class Othello:
         self.dessiner_plateau()
 
         self.blink_state = False
-        self.clignotement_delay = 1000  # ms
+        self.clignotement_delay = 1000
         self.fenetre.after(self.clignotement_delay, self.clignoter)
 
         if self.mode_ia and self.joueur_courant == self.couleur_ia:
@@ -63,8 +64,8 @@ class Othello:
 
         for lig in range(self.size):
             for col in range(self.size):
-                x1 = self.marge + col * self.cellules_size
-                y1 = self.marge + lig * self.cellules_size
+                x1 = self.marge+col * self.cellules_size
+                y1 = self.marge+lig * self.cellules_size
                 x2 = x1 + self.cellules_size
                 y2 = y1 + self.cellules_size
 
@@ -76,23 +77,19 @@ class Othello:
         self.afficher_coups_jouables()
 
     def gerer_clic(self, event):
-        col = int((event.x - self.marge) // self.cellules_size)
-        lig = int((event.y - self.marge) // self.cellules_size)
+        col = int((event.x - self.marge)//self.cellules_size)
+        lig = int((event.y - self.marge)//self.cellules_size)
 
         if 0 <= lig < self.size and 0 <= col < self.size:
             if self.coup_valide(lig, col, self.joueur_courant):
                 joueur_actuel = self.joueur_courant
-
                 # on place le pion car valide, et on retourne les pions adverses
                 self.plateau[lig][col] = joueur_actuel
                 self.retourner_pions(lig, col, joueur_actuel)
-
                 self.mise_à_jour_scores()
                 self.dessiner_plateau()
-
                 # on cherche à déterminer le joueur suivant
                 prochain = self.BLANC if self.joueur_courant == self.NOIR else self.NOIR
-
                 if not self.peut_jouer(self.joueur_courant) and not self.peut_jouer(prochain):
                     self.verifier_fin_partie()
                     return
@@ -315,11 +312,12 @@ class Othello:
 
 
 class IAOthello:
-    def __init__(self, jeu, couleur, profondeur_max):
+    def __init__(self, jeu, couleur, profondeur_max,style):
         """Initialise l'IA avec sa couleur et la profondeur max de recherche."""
         self.jeu = jeu
         self.couleur = couleur
         self.profondeur_max = profondeur_max
+        self.style = style
 
     def jouer_coup(self, plateau):
         meilleur_score = float("-inf") #-inf pour maximiser notre coup
@@ -372,12 +370,21 @@ class IAOthello:
         
     def evaluer_plateau(self, plateau):
         """Évalue le plateau selon une heuristique avancée."""
+        offensif = 10
+        defensif = 10
+        strategique = 25
+        if self.style == "offensif":
+            offensif = 20
+        elif self.style == "defensif":
+            defensif = 20
+        else:
+            strategique = 35
         score = 0
-        score += 10 * self.diff_pions(plateau)
+        score += offensif * self.diff_pions(plateau)
         score += 20 * self.coins(plateau)
         score += 15 * self.mobilite(plateau)
-        score += 10 * self.stabilite(plateau)
-        score += 25 * self.triangles(plateau)
+        score += defensif * self.stabilite(plateau)
+        score += strategique * self.triangles(plateau)
         score -= 10 * self.cases_dangereuses(plateau)
         return score
 
@@ -572,7 +579,7 @@ def menu_ia_options(root):
         ia_frame.destroy()
         couleur_ia = random.choice(["N", "B"])
         print(f"[INFO] L'IA joue en {couleur_ia}")
-        Othello(root, mode_ia=True, couleur_ia=couleur_ia)
+        Othello(root, mode_ia=True, couleur_ia=couleur_ia,style_ia = ia_mode)
 
     btn_confirmer = ttk.Button(ia_frame, text="Lancer l'IA", command=confirmer_ia, style="Custom.TButton")
     btn_confirmer.pack(pady=20, fill="x", padx=40)
