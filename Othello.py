@@ -94,6 +94,7 @@ class Othello:
                     self.verifier_fin_partie()
                     return
                 if not self.peut_jouer(prochain):
+                    self.fenetre.update()
                     messagebox.showinfo("Passer le tour", f"Le joueur {prochain} ne peut pas jouer. Le tour reste au joueur {self.joueur_courant}.")
                     if self.mode_ia and self.joueur_courant == self.couleur_ia:
                         self.faire_jouer_ia()
@@ -216,6 +217,7 @@ class Othello:
                 resultat = "Le joueur Blanc gagne la partie !"
             else:
                 resultat = "Match nul !"
+            self.fenetre.update()
             messagebox.showinfo("Fin de Partie", f"Score final - Noirs: {pions_noir} | Blancs: {pions_blanc}\n{resultat}")
     
     def afficher_coups_jouables(self):
@@ -257,12 +259,14 @@ class Othello:
             self.mise_à_jour_scores()
             self.dessiner_plateau()
             if not self.peut_jouer(self.joueur_courant):
+                self.fenetre.update()
                 messagebox.showinfo("Passer le tour", f"Le joueur {self.joueur_courant} ne peut pas jouer. Le tour reste à l'IA.")
                 self.joueur_courant = self.couleur_ia
                 if not self.partie_terminee():
                     self.faire_jouer_ia()
         else:
             #si l'ia ne peut pas jouer, c'est encore au joueur de jouer
+            self.fenetre.update()
             messagebox.showinfo("Passer le tour", "L'IA ne peut pas jouer")
             self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
 
@@ -442,7 +446,7 @@ class IAOthello:
         return nb_IA - nb_adv
 
     def stabilite(self, plateau):
-        """Évalue les pions stables (non retournables) de l'IA et de l'adversaire."""
+        """Évalue les pions stables (non retournables) de l'IA et de l'adversaire"""
         score = 0
         adv = "B" if self.couleur == "N" else "N"
 
@@ -538,7 +542,7 @@ def menu_accueil():
     style.configure("Custom.TButton", font=("Helvetica", 20), padding=(20, 10))
     def lancer_pvp():
         frame.destroy()
-        Othello(root)
+        Othello(root,style_ia=None)
     
     def lancer_ia_menu():
         """Lance le menu pour choisir le style de jeu de l'IA."""
