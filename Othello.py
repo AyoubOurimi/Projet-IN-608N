@@ -3,57 +3,48 @@ import tkinter.messagebox as messagebox
 from tkinter import ttk
 import random as random
 import time
+import simpleaudio as sa
 
 class Othello:
     def __init__(self, fenetre, style_ia, mode_ia=False, couleur_ia=None):
         self.fenetre = fenetre
         self.fenetre.title("Othello")
-
         icone = tk.PhotoImage(file="Othello/Logo_Tkinter.png")
         self.fenetre.iconphoto(False, icone)
-
         self.image_plateau = tk.PhotoImage(file="Othello/Plateau.png")
         self.size = 8  # Taille du plateau (8x8)
         self.image_size = self.image_plateau.width()  # supposé carré
         self.marge = 17.5  # bordure autour du plateau
         self.cellules_size = (self.image_size - 2 * self.marge) / 8
-
         self.canvas = tk.Canvas(self.fenetre,width=self.image_plateau.width(),height=self.image_plateau.height())
         self.canvas.pack()
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_plateau) #affichage de l'image
-
         self.pion_noir_img = tk.PhotoImage(file="Othello/pion_noir.png")
         self.pion_blanc_img = tk.PhotoImage(file="Othello/pion_blanc.png")
         self.pion_gris_img = tk.PhotoImage(file="Othello/pion_gris.png")
-
+        self.sons_pions = [sa.WaveObject.from_wave_file("Othello/Sons/pion1.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion2.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion3.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion4.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion5.wav")]
         self.style_ia = style_ia
         self.mode_ia = mode_ia
         self.couleur_ia = couleur_ia
         if self.mode_ia:
             self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=5, style=self.style_ia)
-
         self.NOIR = "N"
         self.BLANC = "B"
-
         self.plateau = [[None for _ in range(self.size)] for _ in range(self.size)]
         mid = self.size // 2
         self.plateau[mid - 1][mid - 1]= self.BLANC
         self.plateau[mid - 1][mid] = self.NOIR
         self.plateau[mid][mid - 1]= self.NOIR
         self.plateau[mid][mid] = self.BLANC
-
         self.canvas.bind("<Button-1>", self.gerer_clic)
         self.joueur_courant = self.NOIR
-
         self.score_label = tk.Label(self.fenetre, font=("Arial", 14))
         self.score_label.pack(pady=10)
         self.mise_à_jour_scores()
         self.dessiner_plateau()
-
         self.blink_state = False
         self.clignotement_delay = 1000
         self.fenetre.after(self.clignotement_delay, self.clignoter)
-
         if self.mode_ia and self.joueur_courant == self.couleur_ia:
             self.faire_jouer_ia()
             
@@ -61,19 +52,16 @@ class Othello:
     def dessiner_plateau(self):
         self.canvas.delete("all")
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_plateau)
-
         for lig in range(self.size):
             for col in range(self.size):
                 x1 = self.marge+col * self.cellules_size
                 y1 = self.marge+lig * self.cellules_size
                 x2 = x1 + self.cellules_size
                 y2 = y1 + self.cellules_size
-
                 if self.plateau[lig][col] == self.NOIR:
                     self.canvas.create_image((x1 + x2) // 2, (y1 + y2) // 2, image=self.pion_noir_img)
                 elif self.plateau[lig][col] == self.BLANC:
                     self.canvas.create_image((x1 + x2) // 2, (y1 + y2) // 2, image=self.pion_blanc_img)
-
         self.afficher_coups_jouables()
 
     def gerer_clic(self, event):
@@ -86,6 +74,7 @@ class Othello:
                 # on place le pion car valide, et on retourne les pions adverses
                 self.plateau[lig][col] = joueur_actuel
                 self.retourner_pions(lig, col, joueur_actuel)
+                self.jouer_son_pion()
                 self.mise_à_jour_scores()
                 self.dessiner_plateau()
                 # on cherche à déterminer le joueur suivant
@@ -102,7 +91,6 @@ class Othello:
                     self.joueur_courant = prochain
                     if self.mode_ia and self.joueur_courant == self.couleur_ia:
                         self.faire_jouer_ia()
-                
                 if self.mode_ia:
                     self.test_diff_ia() #test pour verif la diff des pions
                     self.test_coins_ia() #test pour verif les pions des coins 
@@ -112,10 +100,8 @@ class Othello:
                     self.test_triangles() #test zone triangulaire (dangereux)
                     self.test_cases_dangereuses() #test verif les case dangereuses (bord)
                     self.test_apply_move() #test pour voir le calcul des prochains coups possibles
-
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
-                
                 #on vérif dès que le changement de joueur est fait
                 if self.partie_terminee():
                     self.verifier_fin_partie()
@@ -133,20 +119,16 @@ class Othello:
         #la première ligne dans le tableau c'est les points à gauche(-1,0), à droite(1,0), en dessous(0,-1), et au dessus(0,1),
         #la deuxieme ligne c'est les points en haut à gauche(-1,-1), en haut à gauche(-1,1), en bas à droite (1,-1) et en haut à droite (1,1)
         #j'espère c clair les frères ptdrr
-
         adversaire = self.NOIR if joueur == self.BLANC else self.BLANC
-
         for dx, dy in directions:
             pions_a_retourner = []
             x = ligne + dx
             y = col + dy
-
             #on récupère les pions adverses dans la direction donnée
             while 0 <= x < self.size and 0 <= y < self.size and self.plateau[x][y] == adversaire:
                 pions_a_retourner.append((x, y))
                 x += dx
                 y += dy
-
             #si à la fin on retrouve un pion du joueur alors on retourne les pions adverses entre les deux pions
             if pions_a_retourner and 0 <= x < self.size and 0 <= y < self.size and self.plateau[x][y] == joueur:
                 for rx, ry in pions_a_retourner:
@@ -156,26 +138,21 @@ class Othello:
         """Vérifie si le coup est valide : la case doit être vide et encadrer au moins un pion adverse."""
         if self.plateau[ligne][col] is not None:
             return False
-
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1),
                       (-1, -1), (-1, 1), (1, -1), (1, 1)]
         adversaire = self.NOIR if joueur == self.BLANC else self.BLANC
-
         for dx, dy in directions:
             x = ligne + dx
             y = col + dy
             encadrement = 0
-
             #on boucle tant que l'on trouve des pions adverses dans la direction donnée
             while 0 <= x < self.size and 0 <= y < self.size and self.plateau[x][y] == adversaire:
                 encadrement += 1
                 x += dx
                 y += dy
-
             #le coup est considéré valide si on trouve un pion du joueur dans la direction qui encadre des pions adverses
             if encadrement > 0 and 0 <= x < self.size and 0 <= y < self.size and self.plateau[x][y] == joueur:
                 return True
-
         return False
     
     def mise_à_jour_scores(self):
@@ -255,6 +232,7 @@ class Othello:
             self.fenetre.update()
             time.sleep(1)
             self.ai_player.jouer_coup(self.plateau)
+            self.jouer_son_pion()
             self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
             self.mise_à_jour_scores()
             self.dessiner_plateau()
@@ -269,8 +247,11 @@ class Othello:
             self.fenetre.update()
             messagebox.showinfo("Passer le tour", "L'IA ne peut pas jouer")
             self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
-
     
+    def jouer_son_pion(self):
+        son = random.choice(self.sons_pions)
+        son.play()
+
     """ ⚠️⚠️ TEST POUR LES FONCTIONS DE L'IA"""
     def test_diff_ia(self):
         diff = self.ai_player.diff_pions(self.plateau)
@@ -326,11 +307,9 @@ class IAOthello:
     def jouer_coup(self, plateau):
         meilleur_score = float("-inf") #-inf pour maximiser notre coup
         meilleur_coup = None
-
         for coup in self.get_valid_moves(plateau, self.couleur): #on parcours tous les coups possibles et on prend le meilleur (via min-max)
             nouveau_plateau = self.apply_move(plateau, coup, self.couleur)
             score = self.minmax(nouveau_plateau, self.profondeur_max - 1, float("-inf"), float("inf"), False)
-
             if score > meilleur_score:
                 meilleur_score = score
                 meilleur_coup = coup
@@ -344,13 +323,10 @@ class IAOthello:
         """Algorithme Min-Max avec élagage alpha-bêta pour choisir un coup."""
         if profondeur == 0 or self.game_over(plateau): #condition d'arrêt de la récursion
             return self.evaluer_plateau(plateau)
-        
         joueur = self.couleur if maximisant else ("B" if self.couleur == "N" else "N") #si maxisanr = true c'est le tour de l'IA, sinon c'est l'adversaire
         coups_possibles = self.get_valid_moves(plateau, joueur)
-
         if not coups_possibles: #aucun coup possible, on passe le tour et on continue la récursivité
             return self.minmax(plateau, profondeur - 1, alpha, beta, not maximisant)
-
         if maximisant: #l'IA veut le meilleur coup (maximisant)
                 max_eval = float("-inf")
                 for coup in coups_possibles:
@@ -406,14 +382,12 @@ class IAOthello:
             return nb_noirs, nb_blancs
 
         nb_noirs, nb_blancs = count_pieces(plateau)
-
         if self.couleur == "N":
             nb_Ia = nb_noirs
             nb_adv = nb_blancs
         else:
             nb_Ia = nb_blancs
             nb_adv = nb_noirs
-
         return nb_Ia - nb_adv
 
     def coins(self, plateau):
@@ -442,17 +416,14 @@ class IAOthello:
         nb_IA  = len(self.get_valid_moves(plateau, self.couleur))
         adv = "B" if self.couleur == "N" else "N"
         nb_adv = len(self.get_valid_moves(plateau, adv))
-
         return nb_IA - nb_adv
 
     def stabilite(self, plateau):
         """Évalue les pions stables (non retournables) de l'IA et de l'adversaire"""
         score = 0
         adv = "B" if self.couleur == "N" else "N"
-
         def est_sur_bord(x, y):
             return x == 0 or x == 7 or y == 0 or y == 7
-
         for x in range(8):
             for y in range(8):
                 if plateau[x][y] == self.couleur and est_sur_bord(x, y):
@@ -466,16 +437,13 @@ class IAOthello:
         triangles_pos = [[(0,0), (0,1), (1,0)], [(0,7), (0,6), (1,7)], [(7,0), (6,0), (7,1)], [(7,7), (6,7), (7,6)]]
         score = 0
         adv = "B" if self.couleur == "N" else "N"
-
         for triangle in triangles_pos:
             nb_IA = sum(1 for (x, y) in triangle if plateau[x][y] == self.couleur)
             nb_adv = sum(1 for (x, y) in triangle if plateau[x][y] == adv)
-
             if nb_IA == 3:
                 score += 1
             elif nb_adv == 3:
                 score -= 1
-
         return score
 
     def cases_dangereuses(self, plateau):
@@ -483,13 +451,11 @@ class IAOthello:
         dangereuses_pos = [(0,1), (1,0), (1,1), (0,6), (1,7), (1,6), (6,0), (6,1), (7,1), (6,7), (7,6), (6,6)]
         score = 0
         adv = "B" if self.couleur == "N" else "N"
-
         for x, y in dangereuses_pos:
             if plateau[x][y] == self.couleur:
                 score += 1
             elif plateau[x][y] == adv:
                 score -= 1
-
         return score
 
     def apply_move(self, plateau, coup, joueur):
@@ -540,6 +506,7 @@ def menu_accueil():
     label_title = ttk.Label(frame, text="Bienvenue dans Othello", style="Custom.TLabel")
     label_title.pack(pady=(40, 20))
     style.configure("Custom.TButton", font=("Helvetica", 20), padding=(20, 10))
+    
     def lancer_pvp():
         frame.destroy()
         Othello(root,style_ia=None)
@@ -553,7 +520,6 @@ def menu_accueil():
     btn_pvp.pack(pady=20, fill="x", padx=40)
     btn_ia = ttk.Button(frame, text="Joueur contre IA", command=lancer_ia_menu, style="Custom.TButton")
     btn_ia.pack(pady=30, fill="x", padx=40)
-    
     root.mainloop()
 
 def menu_ia_options(root):
