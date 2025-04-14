@@ -30,6 +30,7 @@ class Othello:
             self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=5, style=self.style_ia)
         self.NOIR = "N"
         self.BLANC = "B"
+        self.joueur_courant = self.NOIR
         self.plateau = [[None for _ in range(self.size)] for _ in range(self.size)]
         mid = self.size // 2
         self.plateau[mid - 1][mid - 1]= self.BLANC
@@ -37,7 +38,6 @@ class Othello:
         self.plateau[mid][mid - 1]= self.NOIR
         self.plateau[mid][mid] = self.BLANC
         self.canvas.bind("<Button-1>", self.gerer_clic)
-        self.joueur_courant = self.NOIR
         self.score_label = tk.Label(self.fenetre, font=("Arial", 14))
         self.score_label.pack(pady=10)
         self.mise_à_jour_scores()
@@ -100,6 +100,8 @@ class Othello:
                     self.test_triangles() #test zone triangulaire (dangereux)
                     self.test_cases_dangereuses() #test verif les case dangereuses (bord)
                     self.test_apply_move() #test pour voir le calcul des prochains coups possibles
+                    self.test_evaluer_coup_simple() #test pour voir le score du coup
+                    self.test_tri_coups_ia()
                 if not self.partie_terminee():
                     self.dessiner_plateau()  
                 #on vérif dès que le changement de joueur est fait
@@ -294,6 +296,35 @@ class Othello:
     def test_cases_dangereuses(self):
         score_danger = self.ai_player.cases_dangereuses(self.plateau)
         print(f"[IA] Score de cases dangereuses : {score_danger}")
+    
+    def test_evaluer_coup_simple(self):
+        print("[IA] test evaluer_coup_simple()")
+        coups = self.ai_player.get_valid_moves(self.plateau, self.ai_player.couleur)
+        if coups:
+            coup_test = coups[0]
+            score = self.ai_player.evaluer_coup_simple(coup_test)
+            print(f"[IA] Coup testé : {coup_test} → Score simple : {score}")
+        else:
+            print("[IA] Aucun coup valide à tester.")
+
+    def test_tri_coups_ia(self):
+        """Affiche les coups triés par priorité avec leur score simple (debug)."""
+        print("\n[DEBUG IA] Tri des coups avec evaluer_coup_simple() :")
+        coups_valides = self.ai_player.get_valid_moves(self.plateau, self.ai_player.couleur)
+        if not coups_valides:
+            print("Pas de coups pour l'IA")
+            return
+        coups_tries = sorted(coups_valides, key=self.ai_player.evaluer_coup_simple, reverse=True)
+        for i, coup in enumerate(coups_tries):
+            score = self.ai_player.evaluer_coup_simple(coup)
+            commentaire = ""
+            if score >= 100:
+                commentaire = "(Coin)"
+            elif score <= -75:
+                commentaire = "(X-coins ou cases dangereuses)"
+            elif score >= 50:
+                commentaire = "(Bord)"
+            print(f"  #{i+1}  Coup {coup} → Score : {score} {commentaire}")
 
 
 class IAOthello:
@@ -305,9 +336,11 @@ class IAOthello:
         self.style = style
 
     def jouer_coup(self, plateau):
-        meilleur_score = float("-inf") #-inf pour maximiser notre coup
+        meilleur_score = float("-inf")
         meilleur_coup = None
-        for coup in self.get_valid_moves(plateau, self.couleur): #on parcours tous les coups possibles et on prend le meilleur (via min-max)
+        coups_possibles = self.get_valid_moves(plateau, self.couleur)
+        coups_tries = sorted(coups_possibles, key=self.evaluer_coup_simple, reverse=True)
+        for coup in coups_tries: #on parcours tous les coups possibles déjà triés et on prend le meilleur (via min-max)
             nouveau_plateau = self.apply_move(plateau, coup, self.couleur)
             score = self.minmax(nouveau_plateau, self.profondeur_max - 1, float("-inf"), float("inf"), False)
             if score > meilleur_score:
@@ -325,11 +358,14 @@ class IAOthello:
             return self.evaluer_plateau(plateau)
         joueur = self.couleur if maximisant else ("B" if self.couleur == "N" else "N") #si maxisanr = true c'est le tour de l'IA, sinon c'est l'adversaire
         coups_possibles = self.get_valid_moves(plateau, joueur)
-        if not coups_possibles: #aucun coup possible, on passe le tour et on continue la récursivité
+        trier_descendant = (joueur == self.couleur)
+        coups_tries = sorted(coups_possibles, key=self.evaluer_coup_simple, reverse=trier_descendant) #tri décroissant  soit max pour l'ia min pour le joueur
+        coups_tries = coups_tries[:10] #on garde que les 6 meilleurs coup pour ne pas trop calculer (ça ne change pas réellement la difficulté de l'ia)
+        if not coups_tries: #aucun coup possible, on passe le tour et on continue la récursivité
             return self.minmax(plateau, profondeur - 1, alpha, beta, not maximisant)
         if maximisant: #l'IA veut le meilleur coup (maximisant)
                 max_eval = float("-inf")
-                for coup in coups_possibles:
+                for coup in coups_tries:
                     nouveau_plateau = self.apply_move(plateau, coup, joueur)
                     evaluation = self.minmax(nouveau_plateau, profondeur - 1, alpha, beta, False) #on cherche le score minimisant pour le prochain coup du joueur
                     max_eval = max(max_eval, evaluation) #on prend le meilleur pour l'IA
@@ -339,7 +375,7 @@ class IAOthello:
                 return max_eval
         else: #cas ou l'adversaire va jouer et essayer de minimiser notre score
             min_eval = float("inf")
-            for coup in coups_possibles:
+            for coup in coups_tries:
                 nouveau_plateau = self.apply_move(plateau, coup, joueur)
                 evaluation = self.minmax(nouveau_plateau, profondeur - 1, alpha, beta, True)
                 min_eval = min(min_eval, evaluation) #même principe qu'en haut, sauf qu'on garde le pire score pour le joueur
@@ -348,24 +384,114 @@ class IAOthello:
                     break  #élagage alpha bete ici
             return min_eval
         
-    def evaluer_plateau(self, plateau):
-        """Évalue le plateau selon une heuristique avancée."""
-        offensif = 10
-        defensif = 10
-        strategique = 25
-        if self.style == "offensif":
-            offensif = 20
-        elif self.style == "defensif":
-            defensif = 20
-        else:
-            strategique = 35
+    def evaluer_coup_simple(self, coup):
+        """Fonction qui permet d'évaluer un coup et renvoie un score associé à celui ci"""
+        ligne, colonne = coup
+        couleur_adv = "B" if self.couleur == "N" else "N"
         score = 0
-        score += offensif * self.diff_pions(plateau)
-        score += 20 * self.coins(plateau)
-        score += 15 * self.mobilite(plateau)
-        score += defensif * self.stabilite(plateau)
-        score += strategique * self.triangles(plateau)
-        score -= 10 * self.cases_dangereuses(plateau)
+        coins = {(0, 0): [(0, 1), (1, 0), (1, 1)],(0, 7): [(0, 6), (1, 7), (1, 6)],(7, 0): [(6, 0), (7, 1), (6, 1)],(7, 7): [(6, 7), (7, 6), (6, 6)]}
+        xcoins = {(1, 1): (0, 0), (1, 6): (0, 7), (6, 1): (7, 0), (6, 6): (7, 7)}
+        cases_dangereuses = {(0,1): (0,0), (1,0): (0,0), (1,1): (0,0),(0,6): (0,7), (1,7): (0,7), (1,6): (0,7),(6,0): (7,0), (6,1): (7,0), (7,1): (7,0),(6,7): (7,7), (7,6): (7,7), (6,6): (7,7)}
+        # Bonus pour un coin, boosté si il est sécu
+        if (ligne, colonne) in coins:
+            voisins = coins[(ligne, colonne)]
+            coin_securise = True
+            for vx, vy in voisins:
+                if not (0 <= vx < 8 and 0 <= vy < 8):
+                    continue  #on skip les cases hors plateau
+                if self.jeu.plateau[vx][vy] != self.couleur:
+                    coin_securise = False
+                    break
+            score += 150 if coin_securise else 100
+        #malus pour les x coins dangeruex
+        elif (ligne, colonne) in xcoins:
+            coin_x, coin_y = xcoins[(ligne, colonne)]
+            if self.jeu.plateau[coin_x][coin_y] != self.couleur:
+                score -= 150
+        #malus pour les cases dangereuses
+        elif (ligne, colonne) in cases_dangereuses:
+            coin_x, coin_y = cases_dangereuses[(ligne, colonne)]
+            if self.jeu.plateau[coin_x][coin_y] != self.couleur:
+                score -= 75
+        #bonus pour les bords qui ne sont pas des coins
+        elif ligne == 0 or ligne == 7 or colonne == 0 or colonne == 7:
+            score += 40
+        #calcul de nombre de pions retourner, très utile en fin de partie
+        retourne = self.renvoie_pions_retournes(coup)
+        score += retourne * 3
+        return score
+    
+    def renvoie_pions_retournes(self, coup):
+        """Renvoie le nombre de pions retournés par un coup donné."""
+        ligne, colonne = coup
+        adversaire = "B" if self.couleur == "N" else "N"
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1),(-1, -1), (-1, 1), (1, -1), (1, 1)]
+        compteur = 0
+        for dx, dy in directions:
+            x, y = ligne + dx, colonne + dy
+            temp = 0
+            while 0 <= x < 8 and 0 <= y < 8 and self.jeu.plateau[x][y] == adversaire:
+                temp += 1
+                x += dx
+                y += dy
+            if temp > 0 and 0 <= x < 8 and 0 <= y < 8 and self.jeu.plateau[x][y] == self.couleur:
+                compteur += temp
+        return compteur
+    
+    def evaluer_plateau(self, plateau):
+        """Évalue le plateau selon nos calculs et s'adapte selon le style de jeu et la durée de la partie."""
+        total_pions = sum(row.count("N") + row.count("B") for row in plateau) #on compte tous les pions sur le plateau
+        if total_pions < 20: # début de game, peu de pion sur le plateau donc stabilité peu importante par exemple
+            poids_base = {
+                "diff": 5,
+                "coins": 100,
+                "mobilite": 30,
+                "stabilite": 10,
+                "triangles": 20,
+                "cases_dangereuses": 25,
+                "xcoins": 50,
+            }
+        elif total_pions < 50:#milieu de partie, les cases dangereuses sont surement déjà prises, la différence de pions commence à être importante
+            poids_base = {
+                "diff": 15,
+                "coins": 100,
+                "mobilite": 20,
+                "stabilite": 20,
+                "triangles": 10,
+                "cases_dangereuses": 10,
+                "xcoins": 60,
+            }
+        else:# fin de partie, les coins vont énormément influencé la fin de partie mais les xcoins beaucoup moins, avoir un jeu stable permet d'avoir un maximum de pions
+            poids_base = {
+                "diff": 30,
+                "coins": 120,
+                "mobilite": 10,
+                "stabilite": 40,
+                "triangles": 0,
+                "cases_dangereuses": 5,
+                "xcoins": 20,
+            }
+        #Selon le style de l'ia on va changer certaines valeurs définit plus haut
+        if self.style == "offensif":
+            poids_base["diff"] *= 1.5
+            poids_base["mobilite"] *= 1.3
+            poids_base["xcoins"] *= 0.8
+        elif self.style == "defensif":
+            poids_base["stabilite"] *= 1.5
+            poids_base["cases_dangereuses"] *= 1.2
+            poids_base["xcoins"] *= 1.2
+        elif self.style == "strategique":
+            poids_base["triangles"] *= 1.5
+            poids_base["coins"] *= 1.2
+            poids_base["xcoins"] *= 1.3
+        score = 0
+        score += poids_base["diff"] * self.diff_pions(plateau)
+        score += poids_base["coins"] * self.coins(plateau)
+        score += poids_base["mobilite"] * self.mobilite(plateau)
+        score += poids_base["stabilite"] * self.stabilite(plateau)
+        score += poids_base["triangles"] * self.triangles(plateau)
+        score -= poids_base["cases_dangereuses"] * self.cases_dangereuses(plateau)
+        score += poids_base["xcoins"] * self.xcoins(plateau)
         return score
 
     def diff_pions(self, plateau):
@@ -391,17 +517,41 @@ class IAOthello:
         return nb_Ia - nb_adv
 
     def coins(self, plateau):
-        """Compte les coins occupés par l'IA et l'adversaire."""
-        coins_pos = [[0,0], [0,7], [7,0], [7,7]]
+        """Compte les coins occupés par l'IA et l'adversaire. Permet de savoir si un coin est sécurisé (bordure complète) et rajoute du score pour cela"""
+        coins_pos = [(0, 0), (0, 7),(7, 0), (7, 7)]
         score = 0
         adv = "B" if self.couleur == "N" else "N"
-        for x,y in coins_pos:
-            if plateau[x][y] == self.couleur:
-                score += 1
-            elif plateau[x][y] == adv:
-                score -=1
-        return score 
+        for x, y in coins_pos:
+            coin = plateau[x][y]
+            if coin == self.couleur:
+                #on vérifie les bords pour voir s'ils sont sécurisés
+                voisins = self._bordures_du_coin(x, y)
+                bordures_securisees = True
+                for vx, vy in voisins:
+                    if 0 <= vx < 8 and 0 <= vy < 8:
+                        if plateau[vx][vy] != self.couleur:
+                            bordures_securisees = False
+                            break
+                if bordures_securisees:
+                    score += 2  # coin bien protégé
+                else:
+                    score += 1  # coin mais fragile
+            elif coin == adv:
+                score -= 1
+        return score
 
+    def _bordures_du_coin(self, x, y):
+        """Renvoie les positions bordures proches d'un coin."""
+        if (x, y) == (0, 0):
+            return [(0, 1), (1, 0), (1, 1)]
+        elif (x, y) == (0, 7):
+            return [(0, 6), (1, 7), (1, 6)]
+        elif (x, y) == (7, 0):
+            return [(6, 0), (7, 1), (6, 1)]
+        elif (x, y) == (7, 7):
+            return [(6, 7), (7, 6), (6, 6)]
+        return []
+    
     def get_valid_moves(self, plateau, joueur):
         """Utilise la méthode coup_valide déjà existante dans Othello."""
         coups_valides = []
@@ -412,7 +562,7 @@ class IAOthello:
         return coups_valides
 
     def mobilite(self, plateau):
-        """Calcule la mobilité (coups possibles IA - adversaire).""" 
+        """calcule la mobilité (coups possibles IA - adversaire).""" 
         nb_IA  = len(self.get_valid_moves(plateau, self.couleur))
         adv = "B" if self.couleur == "N" else "N"
         nb_adv = len(self.get_valid_moves(plateau, adv))
@@ -447,15 +597,38 @@ class IAOthello:
         return score
 
     def cases_dangereuses(self, plateau):
-        """Évalue les cases dangereuses adjacentes aux coins."""
-        dangereuses_pos = [(0,1), (1,0), (1,1), (0,6), (1,7), (1,6), (6,0), (6,1), (7,1), (6,7), (7,6), (6,6)]
+        """évalue les cases dangereuses adjacentes aux coins. En prenant en compte la sécurité du coin"""
+        dangereuses_pos = [
+        ((0,1), (0,0)), ((1,0), (0,0)), ((1,1), (0,0)),
+         ((0,6), (0,7)), ((1,7), (0,7)), ((1,6), (0,7)),
+        ((6,0), (7,0)), ((6,1), (7,0)), ((7,1), (7,0)),
+        ((6,7), (7,7)), ((7,6), (7,7)), ((6,6), (7,7))]        
         score = 0
-        adv = "B" if self.couleur == "N" else "N"
-        for x, y in dangereuses_pos:
-            if plateau[x][y] == self.couleur:
-                score += 1
-            elif plateau[x][y] == adv:
-                score -= 1
+        adversaire = "B" if self.couleur == "N" else "N"
+        for (x, y), (coin_x, coin_y) in dangereuses_pos:
+            case = plateau[x][y]
+            coin = plateau[coin_x][coin_y]
+            if coin != self.couleur: #coin pas à l'ia donc dangereux
+                if case == self.couleur:
+                    score -= 1
+                elif case == adversaire:
+                    score += 1
+        return score
+    
+    def xcoins(self, plateau):
+        """pour les x-coins (cases en diagonale des coins) elles sont dangereuses si le coin adjacent n'est pas contrôlé par le bot."""
+        xcoin_positions = [((1, 1), (0, 0)),((1, 6), (0, 7)),((6, 1), (7, 0)),((6, 6), (7, 7)),]
+        score = 0
+        couleur_adversaire = "B" if self.couleur == "N" else "N"
+        for (xcoin_ligne, xcoin_colonne), (coin_ligne, coin_colonne) in xcoin_positions:
+            case_xcoin = plateau[xcoin_ligne][xcoin_colonne]
+            case_coin = plateau[coin_ligne][coin_colonne]
+            #si l'ia n'a pas le coin alors c'est une case dangereuse
+            if case_coin != self.couleur:
+                if case_xcoin == self.couleur:
+                    score -= 1  #pénalité si l'IA prend une X-coin dangereux
+                elif case_xcoin == couleur_adversaire:
+                    score += 1  #sinon avantage
         return score
 
     def apply_move(self, plateau, coup, joueur):
