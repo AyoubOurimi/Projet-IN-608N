@@ -22,6 +22,9 @@ class Othello:
         self.pion_noir_img = tk.PhotoImage(file="Othello/pion_noir.png")
         self.pion_blanc_img = tk.PhotoImage(file="Othello/pion_blanc.png")
         self.pion_gris_img = tk.PhotoImage(file="Othello/pion_gris.png")
+        self.pion_noir_rouge_img = tk.PhotoImage(file="Othello/pion_noir_rouge.png")
+        self.pion_blanc_rouge_img = tk.PhotoImage(file="Othello/pion_blanc_rouge.png")
+        self.dernier_coup_ia = None
         self.sons_pions = [sa.WaveObject.from_wave_file("Othello/Sons/pion1.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion2.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion3.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion4.wav"),sa.WaveObject.from_wave_file("Othello/Sons/pion5.wav")]
         self.style_ia = style_ia
         self.mode_ia = mode_ia
@@ -58,10 +61,19 @@ class Othello:
                 y1 = self.marge+lig * self.cellules_size
                 x2 = x1 + self.cellules_size
                 y2 = y1 + self.cellules_size
-                if self.plateau[lig][col] == self.NOIR:
-                    self.canvas.create_image((x1 + x2) // 2, (y1 + y2) // 2, image=self.pion_noir_img)
-                elif self.plateau[lig][col] == self.BLANC:
-                    self.canvas.create_image((x1 + x2) // 2, (y1 + y2) // 2, image=self.pion_blanc_img)
+                cx = (x1 + x2) // 2
+                cy = (y1 + y2) // 2
+                pion = self.plateau[lig][col]
+                if (lig, col) == self.dernier_coup_ia and pion == self.couleur_ia:
+                    if pion == self.NOIR:
+                        self.canvas.create_image(cx, cy, image=self.pion_noir_rouge_img)
+                    elif pion == self.BLANC:
+                        self.canvas.create_image(cx, cy, image=self.pion_blanc_rouge_img)
+                else:
+                    if pion == self.NOIR:
+                        self.canvas.create_image(cx, cy, image=self.pion_noir_img)
+                    elif pion == self.BLANC:
+                        self.canvas.create_image(cx, cy, image=self.pion_blanc_img)
         self.afficher_coups_jouables()
 
     def gerer_clic(self, event):
@@ -233,7 +245,10 @@ class Othello:
         if self.peut_jouer(self.couleur_ia):
             self.fenetre.update()
             time.sleep(1)
-            self.ai_player.jouer_coup(self.plateau)
+            dernier_coup = self.ai_player.jouer_coup(self.plateau)
+            if dernier_coup:
+                lig, col = dernier_coup
+                self.dernier_coup_ia = (lig, col)
             self.jouer_son_pion()
             self.joueur_courant = self.BLANC if self.couleur_ia == self.NOIR else self.NOIR
             self.mise_à_jour_scores()
@@ -360,7 +375,7 @@ class IAOthello:
         coups_possibles = self.get_valid_moves(plateau, joueur)
         trier_descendant = (joueur == self.couleur)
         coups_tries = sorted(coups_possibles, key=self.evaluer_coup_simple, reverse=trier_descendant) #tri décroissant  soit max pour l'ia min pour le joueur
-        coups_tries = coups_tries[:10] #on garde que les 6 meilleurs coup pour ne pas trop calculer (ça ne change pas réellement la difficulté de l'ia)
+        coups_tries = coups_tries[:8] #on garde que les 6 meilleurs coup pour ne pas trop calculer (ça ne change pas réellement la difficulté de l'ia)
         if not coups_tries: #aucun coup possible, on passe le tour et on continue la récursivité
             return self.minmax(plateau, profondeur - 1, alpha, beta, not maximisant)
         if maximisant: #l'IA veut le meilleur coup (maximisant)
