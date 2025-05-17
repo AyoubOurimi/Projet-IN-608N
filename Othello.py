@@ -30,7 +30,7 @@ class Othello:
         self.mode_ia = mode_ia
         self.couleur_ia = couleur_ia
         if self.mode_ia:
-            self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=5, style=self.style_ia)
+            self.ai_player = IAOthello(jeu=self, couleur=self.couleur_ia, profondeur_max=6, style=self.style_ia)
         self.NOIR = "N"
         self.BLANC = "B"
         self.joueur_courant = self.NOIR
@@ -128,11 +128,6 @@ class Othello:
         """Retourne les pions adverses encadrés par le pion placé."""
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1),
                       (-1, -1), (-1, 1), (1, -1), (1, 1)]
-        #tableau des directions, j'ai pas trouvé plus simple pour visualiser le truc mais peut être vous aurez une vision plus opti
-        #0,0 c'est le point de départ
-        #la première ligne dans le tableau c'est les points à gauche(-1,0), à droite(1,0), en dessous(0,-1), et au dessus(0,1),
-        #la deuxieme ligne c'est les points en haut à gauche(-1,-1), en haut à gauche(-1,1), en bas à droite (1,-1) et en haut à droite (1,1)
-        #j'espère c clair les frères ptdrr
         adversaire = self.NOIR if joueur == self.BLANC else self.BLANC
         for dx, dy in directions:
             pions_a_retourner = []
